@@ -16,9 +16,17 @@ from time import sleep
 
 ##configuration parameters
 router_queue_size = 0 #0 means unlimited
-simulation_time = 2 #give the network sufficient time to transfer all packets before quitting
+simulation_time = 10 #give the network sufficient time to transfer all packets before quitting
 
 if __name__ == '__main__':
+    #Routing tables
+    Ra_table = {3:2, 4:3}
+    Rb_table = {3:1}
+    Rc_table = {4:1}
+    Rd_table = {3:2, 4:3}
+    routing_table = {'Router_A': Ra_table, 'Router_B' : Rb_table,
+                     'Router_C' : Rc_table, 'Router_D' : Rd_table}
+
     object_L = [] #keeps track of objects, so we can kill their threads
 
     #create network nodes
@@ -34,16 +42,16 @@ if __name__ == '__main__':
     server2 = network.Host(4)
     object_L.append(server2)
 
-    router_a = network.Router(name='A', intf_count=4, max_queue_size=router_queue_size)
+    router_a = network.Router(name='A', intf_count=4, max_queue_size=router_queue_size, routing_table=routing_table)
     object_L.append(router_a)
 
-    router_b = network.Router(name='B', intf_count=2, max_queue_size=router_queue_size)
+    router_b = network.Router(name='B', intf_count=2, max_queue_size=router_queue_size, routing_table=routing_table)
     object_L.append(router_b)
 
-    router_c = network.Router(name='C', intf_count=2, max_queue_size=router_queue_size)
+    router_c = network.Router(name='C', intf_count=2, max_queue_size=router_queue_size, routing_table=routing_table)
     object_L.append(router_c)
 
-    router_d = network.Router(name='D', intf_count=4, max_queue_size=router_queue_size)
+    router_d = network.Router(name='D', intf_count=4, max_queue_size=router_queue_size, routing_table=routing_table)
     object_L.append(router_d)
 
     #create a Link Layer to keep track of links between network nodes
@@ -79,7 +87,7 @@ if __name__ == '__main__':
     thread_L.append(threading.Thread(name=client1.__str__(), target=client1.run))
     thread_L.append(threading.Thread(name=client2.__str__(), target=client2.run))
     thread_L.append(threading.Thread(name=server1.__str__(), target=server1.run))
-    tread_L.append(threading.Thread(name=server2.__str__(), target=server2.run))
+    thread_L.append(threading.Thread(name=server2.__str__(), target=server2.run))
 
     #Router threads
     thread_L.append(threading.Thread(name=router_a.__str__(), target=router_a.run))
@@ -97,11 +105,11 @@ if __name__ == '__main__':
     for i in range(3):
         #This sends a long enough message that it must be segmented before Host 1 sends it
         #and also fragmented at the router before forwarding
-        client.udt_send(2, 'Sample data thats at least 80 characters long evident by the two dst addresses %d' % i)
+        client1.udt_send(3, 'Sample data thats at least 80 characters long evident by the two addresses %d' % i)
 
         #this is the given starting sample data
         #it does not require segmentation or fragmentation
-        #client.udt_send(2, 'Sample data %d' % i)
+        #client1.udt_send(3, 'Sample data %d' % i)
 
     #give the network sufficient time to transfer all packets before quitting
     sleep(simulation_time)

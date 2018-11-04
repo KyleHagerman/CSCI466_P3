@@ -147,12 +147,14 @@ class Host:
                         p = NetworkPacket.from_byte_S(str(pkt_S))   #create packet object from byte string
 
                 reconstructed_data_S += p.data_S                    #this is the last data string fragment
-                print('%s: received packet with data string: "%s" on the in interface' % (self, reconstructed_data_S))
+                if reconstructed_data_S is not '':
+                    print('%s: received packet with data string: "%s" on the in interface' % (self, reconstructed_data_S))
 
             else:
 
                 p = NetworkPacket.from_byte_S(str(pkt_S))           #if the packet wasn't fragmented, create packet object
-                print('%s: received packet "%s" on the in interface' % (self, p.data_S))
+                if p.data_S is not '':
+                    print('%s: received packet "%s" on the in interface' % (self, p.data_S))
 
     ## thread target for the host to keep receiving data
     def run(self):
@@ -173,12 +175,14 @@ class Router:
     ##@param name: friendly router name for debugging
     # @param intf_count: the number of input and output interfaces
     # @param max_queue_size: max queue length (passed to Interface)
-    def __init__(self, name, intf_count, max_queue_size):
+    def __init__(self, name, intf_count, max_queue_size, routing_table):
         self.stop = False #for thread termination
         self.name = name
         #create a list of interfaces
         self.in_intf_L = [Interface(max_queue_size) for _ in range(intf_count)]
         self.out_intf_L = [Interface(max_queue_size) for _ in range(intf_count)]
+        #pass the hard-coded routing table to each router
+        self.routing_table = routing_table
 
     ## called when printing the object
     def __str__(self):
@@ -201,32 +205,36 @@ class Router:
                     # HERE you will need to implement a lookup into the
                     # forwarding table to find the appropriate outgoing interface
                     # for now we assume the outgoing interface is also i
+                    router_name_S = 'Router_' + self.name
+                    relevant_routing_table = self.routing_table[router_name_S]
+                    print(relevant_routing_table)
+                    lookup = relevant_routing_table[int(pkt_S[7])]
 
-                    if(len(p.to_byte_S()) > self.out_intf_L[i].mtu):
+                    if(len(p.to_byte_S()) > self.out_intf_L[lookup].mtu):
                         #segement the packet
 
-                        while(len(p.to_byte_S()) > self.out_intf_L[i].mtu):
+                        while(len(p.to_byte_S()) > self.out_intf_L[lookup].mtu):
                             #while the packet data is greater than the link MTU
                             #split the packet into pieces and save the remaining data_S to the original packet
 
                             #this new packet stores the pieces of data that can be sent at max MTU capacity
-                            new_p = NetworkPacket(p.id, 1, p.dst_addr, p.data_S[0 : self.out_intf_L[i].mtu - 7])
+                            new_p = NetworkPacket(p.id, 1, p.dst_addr, p.data_S[0 : self.out_intf_L[lookup].mtu - 7])
                             #send the fragment
-                            self.out_intf_L[i].put(new_p.to_byte_S(), True)
+                            self.out_intf_L[lookup].put(new_p.to_byte_S(), True)
                             print('%s: forwarding packet "%s" from interface %d to %d with mtu %d' \
-                                % (self, new_p, i, i, self.out_intf_L[i].mtu))
+                                % (self, new_p, i, lookup, self.out_intf_L[lookup].mtu))
                             #reset the packet object with the remaining data string
-                            p = NetworkPacket(p.id, 1, p.dst_addr, p.data_S[self.out_intf_L[i].mtu - 7 :])
+                            p = NetworkPacket(p.id, 1, p.dst_addr, p.data_S[self.out_intf_L[lookup].mtu - 7 :])
 
                     #The last fragment will have a fragmentation flag of 0 to indicate it is the last fragment
                     p = NetworkPacket(p.id, 0, p.dst_addr, p.data_S)
                     #send the last fragment
-                    self.out_intf_L[i].put(p.to_byte_S(), True)
+                    self.out_intf_L[lookup].put(p.to_byte_S(), True)
                     print('%s: forwarding packet "%s" from interface %d to %d with mtu %d' \
-                        % (self, p, i, i, self.out_intf_L[i].mtu))
+                        % (self, p, i, lookup, self.out_intf_L[lookup].mtu))
 
             except queue.Full:
-                print('%s: packet "%s" lost on interface %d' % (self, p, i))
+                print('%s: packet "%s" lost on interface %d' % (self, p, lookup))
                 pass
 
     ## thread target for the host to keep forwarding data
