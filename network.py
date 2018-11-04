@@ -2,6 +2,12 @@
 Created on Oct 12, 2016
 
 @author: mwittie
+
+CSCI 466
+Nov 5, 2018
+Program 3
+Kyle Hagerman, Benjamin Naylor
+Git: KyleHagerman, Vispanius
 '''
 import queue
 import threading
