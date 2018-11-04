@@ -20,10 +20,11 @@ simulation_time = 10 #give the network sufficient time to transfer all packets b
 
 if __name__ == '__main__':
     #Routing tables
-    Ra_table = {3:2, 4:3}
-    Rb_table = {3:1}
-    Rc_table = {4:1}
-    Rd_table = {3:2, 4:3}
+    Ra_table = {3:2, 4:3}       #router a's out interfaces by destination address of packet
+    Rb_table = {3:1}            #router b's out interfaces by destination address of packet
+    Rc_table = {4:1}            #router c's out interfaces by destination address of packet
+    Rd_table = {3:2, 4:3}       #router d's out interfaces by destination address of packet
+    #initial lookup picks the right table based on current router doing the looking
     routing_table = {'Router_A': Ra_table, 'Router_B' : Rb_table,
                      'Router_C' : Rc_table, 'Router_D' : Rd_table}
 

@@ -205,10 +205,10 @@ class Router:
                     # HERE you will need to implement a lookup into the
                     # forwarding table to find the appropriate outgoing interface
                     # for now we assume the outgoing interface is also i
-                    router_name_S = 'Router_' + self.name
-                    relevant_routing_table = self.routing_table[router_name_S]
-                    print(relevant_routing_table)
-                    lookup = relevant_routing_table[int(pkt_S[7])]
+
+                    router_name_S = 'Router_' + self.name                           #get the name of the current router for table lookup
+                    relevant_routing_table = self.routing_table[router_name_S]      #first table lookup by current router
+                    lookup = relevant_routing_table[int(pkt_S[7])]                  #second table lookup by destination address
 
                     if(len(p.to_byte_S()) > self.out_intf_L[lookup].mtu):
                         #segement the packet
