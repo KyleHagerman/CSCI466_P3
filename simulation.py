@@ -10,7 +10,7 @@ from time import sleep
 
 ##configuration parameters
 router_queue_size = 0 #0 means unlimited
-simulation_time = 1 #give the network sufficient time to transfer all packets before quitting
+simulation_time = 2 #give the network sufficient time to transfer all packets before quitting
 
 if __name__ == '__main__':
     object_L = [] #keeps track of objects, so we can kill their threads
@@ -47,7 +47,12 @@ if __name__ == '__main__':
 
     #create some send events
     for i in range(3):
+        #This sends a long enough message that it must be segmented before Host 1 sends it
+        #and also fragmented at the router before forwarding
         client.udt_send(2, 'Sample data thats at least 80 characters long evident by the two dst addresses %d' % i)
+
+        #this is the given starting sample data
+        #it does not require segmentation or fragmentation
         #client.udt_send(2, 'Sample data %d' % i)
 
     #give the network sufficient time to transfer all packets before quitting

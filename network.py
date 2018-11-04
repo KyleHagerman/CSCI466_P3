@@ -35,13 +35,15 @@ class Interface:
 # the fields necessary for the completion of this assignment.
 class NetworkPacket:
     ## packet encoding lengths
-    id_S_length = 2
-    frag_S_length = 1
-    dst_addr_S_length = 5
+
+    id_S_length = 2             #the length of bytes used for the packet ID
+    frag_S_length = 1           #the length of bytes used for the packet fragmentation flag
+    dst_addr_S_length = 5       #the length of bytes used for the destination address
 
     ##@param dst_addr: address of the destination host
     # @param data_S: packet payload
     def __init__(self, id, frag, dst_addr, data_S):
+
         self.dst_addr = dst_addr
         self.data_S = data_S
         self.id = id
@@ -53,8 +55,9 @@ class NetworkPacket:
 
     ## convert packet to a byte string for transmission over links
     def to_byte_S(self):
-        byte_S = str(self.id).zfill(self.id_S_length)
-        byte_S += str(self.frag).zfill(self.frag_S_length)
+
+        byte_S = str(self.id).zfill(self.id_S_length)                   #We only have destinations 1-4 but I allowed for 2 digits to be used here
+        byte_S += str(self.frag).zfill(self.frag_S_length)              #The fragmentation flag doesn't fill any zeroes because it's one byte long
         byte_S += str(self.dst_addr).zfill(self.dst_addr_S_length)
         byte_S += self.data_S
         return byte_S
@@ -63,12 +66,11 @@ class NetworkPacket:
     # @param byte_S: byte string representation of the packet
     @classmethod
     def from_byte_S(self, byte_S):
-        #print("This is the byte_S: " + byte_S[0 : NetworkPacket.id_S_length])
-        id_S = byte_S[0 : NetworkPacket.id_S_length]
-        #print("This is the id_S: " + id_S)
-        id = int(id_S)
+
+        id_S = byte_S[0 : NetworkPacket.id_S_length]        #Pulling the ID string from the sent string of bytes
+        id = int(id_S)                                      #The type cast didn't work in the above line so I just broke it into two steps
         frag_S = byte_S[NetworkPacket.id_S_length : NetworkPacket.id_S_length + NetworkPacket.frag_S_length]
-        frag = int(frag_S)
+        frag = int(frag_S)                                  #Same as above, two steps required to pull the integer out of the string
         dst_addr = int(byte_S[NetworkPacket.id_S_length + NetworkPacket.frag_S_length : NetworkPacket.id_S_length + NetworkPacket.frag_S_length + NetworkPacket.dst_addr_S_length])
         data_S = byte_S[NetworkPacket.id_S_length + NetworkPacket.frag_S_length + NetworkPacket.dst_addr_S_length : ]
         return self(id, frag, dst_addr, data_S)
@@ -78,8 +80,6 @@ class NetworkPacket:
 
 ## Implements a network host for receiving and transmitting data
 class Host:
-
-    timeout = 2
 
     ##@param addr: address of this node represented as an integer
     def __init__(self, addr):
@@ -96,55 +96,57 @@ class Host:
     # @param dst_addr: destination address for the packet
     # @param data_S: data being transmitted to the network layer
     def udt_send(self, dst_addr, data_S):
+
         if len(data_S) > self.out_intf_L[0].mtu:
-            #print(data_S[0 : self.out_intf_L[0].mtu])
-            #print(data_S[self.out_intf_L[0].mtu ::])
+            #if the length of the byte string is greater than the MTU capacity, break the packet into two pieces
+            #Note: this will not work for packets of byte strings larger than 2 times the first MTU
+
             p1 = NetworkPacket(1, 0, dst_addr, data_S[0:self.out_intf_L[0].mtu - 7])
             p2 = NetworkPacket(2, 0, dst_addr, data_S[self.out_intf_L[0].mtu - 7:])
             self.out_intf_L[0].put(p1.to_byte_S())
             self.out_intf_L[0].put(p2.to_byte_S())
-            print('%s: sending packet "%s%s" on the out interface with mtu=%d' % (self, p1, p2, self.out_intf_L[0].mtu))
+            print('%s: sending two packets "%s%s" on the out interface with mtu=%d' % (self, p1, p2, self.out_intf_L[0].mtu))
+
         else:
-            print("Data string is less than MTU")
+
+            #if the byte string is less than the MTU then send normally
             p = NetworkPacket(1, 0, dst_addr, data_S)
             self.out_intf_L[0].put(p.to_byte_S()) #send packets always enqueued successfully
             print('%s: sending packet "%s" on the out interface with mtu=%d' % (self, p, self.out_intf_L[0].mtu))
 
     ## receive packet from the network layer
     def udt_receive(self):
-        pkt_S = self.in_intf_L[0].get()
+
+        pkt_S = self.in_intf_L[0].get()             #receive packets until not None
+
         if pkt_S is not None:
             p = NetworkPacket.from_byte_S(str(pkt_S))
-            packet_id = 0
-            print("Received a packet")
             if p.frag is 1:
-                print("Received packet is a fragment")
-                packet_id = p.id
-                reconstructed_p = NetworkPacket(0,0,0,'')
-                reconstructed_data_S = ''
-                timeout_start = time.time()
-                flag_new = 1
-                while packet_id is p.id and time.time() - timeout_start < self.timeout:
+
+                reconstructed_data_S = ''           #initialize a string to hold the reconstructed data_S
+                flag_new = 1                        #flag that says we received a new packet and not None
+
+                while p.frag is 1:
                     #reconstruct the segemnted packet
                     if flag_new is 1:
-                        reconstructed_data_S += p.data_S
-                        print("This is the reconstructed_data_S: " + reconstructed_data_S)
-                        print("This is the p.data_S: " + p.data_S)
-                        flag_new = 0
-                        pkt_S = None
-                    reconstructed_p = NetworkPacket(packet_id, 0, p.dst_addr, reconstructed_data_S)
-                    pkt_S = self.in_intf_L[0].get()
-                    print("Before the second if statement pkt_S is: " + str(pkt_S))
-                    print("Packet ID flag is: " + str(packet_id))
-                    print("Received packet ID is: " + str(p.id))
-                    if pkt_S is not None:
-                        print("We received the next fragment")
-                        flag_new = 1
-                        p = NetworkPacket.from_byte_S(str(pkt_S))
 
-                        print('%s: received packet "%s" on the in interface' % (self, reconstructed_p.to_byte_S()))
+                        reconstructed_data_S += p.data_S            #append the data string to the reconstruction
+                        flag_new = 0                                #reset flag
+                        pkt_S = None                                #clear pkt_S to receive new packet
+
+                    pkt_S = self.in_intf_L[0].get()                 #get a new packet
+                    if pkt_S is not None:
+
+                        flag_new = 1                                #received a new packet
+                        p = NetworkPacket.from_byte_S(str(pkt_S))   #create packet object from byte string
+
+                reconstructed_data_S += p.data_S                    #this is the last data string fragment
+                print('%s: received packet with data string: "%s" on the in interface' % (self, reconstructed_data_S))
+
             else:
-                print('%s: received packet "%s" on the in interface' % (self, pkt_S))
+
+                p = NetworkPacket.from_byte_S(str(pkt_S))           #if the packet wasn't fragmented, create packet object
+                print('%s: received packet "%s" on the in interface' % (self, p.data_S))
 
     ## thread target for the host to keep receiving data
     def run(self):
@@ -179,8 +181,11 @@ class Router:
     ## look through the content of incoming interfaces and forward to
     # appropriate outgoing interfaces
     def forward(self):
+
         for i in range(len(self.in_intf_L)):
-            pkt_S = None
+
+            pkt_S = None        #initialize the pkt_S to None
+
             try:
                 #get packet from interface i
                 pkt_S = self.in_intf_L[i].get()
@@ -191,23 +196,29 @@ class Router:
                     # forwarding table to find the appropriate outgoing interface
                     # for now we assume the outgoing interface is also i
 
-
                     if(len(p.to_byte_S()) > self.out_intf_L[i].mtu):
                         #segement the packet
+
                         while(len(p.to_byte_S()) > self.out_intf_L[i].mtu):
                             #while the packet data is greater than the link MTU
                             #split the packet into pieces and save the remaining data_S to the original packet
-                            print("Packet too long for MTU, segmenting...")
+
+                            #this new packet stores the pieces of data that can be sent at max MTU capacity
                             new_p = NetworkPacket(p.id, 1, p.dst_addr, p.data_S[0 : self.out_intf_L[i].mtu - 7])
+                            #send the fragment
                             self.out_intf_L[i].put(new_p.to_byte_S(), True)
                             print('%s: forwarding packet "%s" from interface %d to %d with mtu %d' \
                                 % (self, new_p, i, i, self.out_intf_L[i].mtu))
+                            #reset the packet object with the remaining data string
                             p = NetworkPacket(p.id, 1, p.dst_addr, p.data_S[self.out_intf_L[i].mtu - 7 :])
-                    else:
-                        print("Packet forwarded from router is less than MTU")
-                        self.out_intf_L[i].put(p.to_byte_S(), True)
+
+                    #The last fragment will have a fragmentation flag of 0 to indicate it is the last fragment
+                    p = NetworkPacket(p.id, 0, p.dst_addr, p.data_S)
+                    #send the last fragment
+                    self.out_intf_L[i].put(p.to_byte_S(), True)
                     print('%s: forwarding packet "%s" from interface %d to %d with mtu %d' \
                         % (self, p, i, i, self.out_intf_L[i].mtu))
+
             except queue.Full:
                 print('%s: packet "%s" lost on interface %d' % (self, p, i))
                 pass
